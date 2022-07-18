@@ -1,9 +1,19 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using proyectoApi;
+using proyectoApi.Models;
+using proyectoApi.ViewModels;
+using System.Data.SqlClient;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<PasantesDGMContext>(opciones=> opciones.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<InterfaceSoli, SolicitudService>();
 
 var app = builder.Build();
 
@@ -16,28 +26,33 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/Personas", () =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateTime.Now.AddDays(index),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    using (var context = new PasantesDGMContext())
+    {
+        return context.Personas.ToList();
+    } 
+});
+
+app.MapGet("/Solicitudes", () =>
+{
+    using (var context = new PasantesDGMContext())
+    {
+        return context.Solicituds.ToList();
+    }
+});
+
+//app.MapPost("/CambiarEstado", async ([FromBody] cambiarEstadoVM vm, [FromServices] PasantesDGMContext context) =>
+
+app.MapPost("/CambiarEstado", async (InterfaceSoli soli, [FromBody] cambiarEstadoVM vm, [FromServices] PasantesDGMContext context) =>
+{
+    var response =await soli.UpdateState(vm);
+    if(response) return Results.Ok("Hecho!");
+    return Results.Ok(response);
+
+});
+
+
 
 app.Run();
-
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
